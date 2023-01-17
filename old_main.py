@@ -1,4 +1,4 @@
-# This is a sample Python script.
+# This is a sample Python script. Only works with 2022 maps
 
 import sys, pygame, math
 
@@ -20,71 +20,58 @@ def arrow(screen, position, heading):
 if __name__ == '__main__':
     #open the file, parse it into list format
     elements = []
-    file = open("2023_test_map.txt", "r")
+    file = open("2022_sample_map.txt", "r")
     for line in file:
         stripped_line = line.strip()
         line_list = stripped_line.split(',')
         elements.append(line_list)
     print(elements)
     buffer = 10
-
-    #set up pygame and board sizes
+    #set up pygame
     pygame.init()
-    res = 120
-    tileX = 3 #number of board tiles across
-    tileY = 3 #num of board tiles
-    size = width, height = (tileX+2)* res, (tileY+2) *res #of total board, by numer of tiles
-    screen = pygame.display.set_mode(size)
-    blockSize = int(res/2) # Set the size of the grid block for every half tile
-    print(blockSize)
-    
-    #draw white dots on grid
+    size = width, height = 320, 240
+    buffered_size = width_buffered, height_buffered = 320 + 2*buffer, 240 + 2*buffer
+    screen = pygame.display.set_mode(buffered_size)
+    blockSize = 20  # Set the size of the grid block
+
+    #draw the grid
     for x in range(0, width, blockSize):
         for y in range(0, height, blockSize):
-            pygame.draw.circle(screen, (255,255,255), (x,y), 1)
-
-    #insert and SETUP image
-    img = pygame.image.load('botpic_cropped.png')
-
-    imgScale = (float(0.5*res), float(0.5*res)) #set this to be height/width in terms of scale of board tile (ie. 0.3 of board tile)
-    img = pygame.transform.scale(img, imgScale)
-    screen.blit(img, (20,20))
-            
+            pygame.draw.circle(screen, (255,255,255), (x + buffer,height-y + buffer), 1)
+    #parse the file
     for element in elements:
         print(element)
         n = element[0]
         if  n == 'W':
             #generic wall
-            start = (float(element[1])*res, float(element[2])*res)
-            end = (float(element[3])*res, float(element[4])*res)
+            start = (int(element[1])*blockSize + buffer, height - int(element[2])*blockSize + buffer)
+            end = (int(element[3])*blockSize + buffer, height - int(element[4])*blockSize + buffer)
             pygame.draw.line(screen,(0,0,255), start, end, 1)
         if n == 'Y':
             # yellow boundary wall
-            start = (float(element[1])*res, float(element[2])*res)
-            end = (float(element[3])*res, float(element[4])*res)
+            start = (int(element[1]) * blockSize + buffer, height - int(element[2]) * blockSize + buffer)
+            end = (int(element[3]) * blockSize + buffer, height - int(element[4]) * blockSize + buffer)
             pygame.draw.line(screen, (255, 255, 0), start, end, 1)
         if n == 'B':
             #green boundary box
-            start = (float(element[1])*res, float(element[2])*res)
-            end = (float(element[3])*res, float(element[4])*res)
+            start = (int(element[1]) * blockSize + buffer, height - int(element[2]) * blockSize + buffer)
+            end = (int(element[3]) * blockSize + buffer, height - int(element[4]) * blockSize + buffer)
             pygame.draw.line(screen, (0, 255, 0), start, end, 1)
         if n == "P":
             #purple boundary
-            start = (float(element[1])*res, float(element[2])*res)
-            end = (float(element[3])*res, float(element[4])*res)
+            start = (int(element[1]) * blockSize + buffer, height - int(element[2]) * blockSize + buffer)
+            end = (int(element[3]) * blockSize + buffer, height - int(element[4]) * blockSize + buffer)
             pygame.draw.line(screen, (255, 0, 255), start, end, 1)
         if n == "R":
             #red ball
-            pygame.draw.circle(screen, (255, 0, 0), (float(element[1])*res, float(element[2])*res), 5)
+            pygame.draw.circle(screen, (255, 0, 0), (int(element[1])*blockSize + buffer, height - int(element[2])*blockSize + buffer), 5)
         if n == "G":
             #green ball
-            pygame.draw.circle(screen, (0, 255, 0), (float(element[1])*res, float(element[2])*res) , 5)
+            pygame.draw.circle(screen, (0, 255, 0), (int(element[1])*blockSize + buffer, height - int(element[2])*blockSize + buffer) , 5)
         if n == "L":
             arrow(screen, (int(element[1])*blockSize + buffer, height-int(element[2])*blockSize + buffer), element[3])
-        
-
     pygame.display.update()
     while 1:
         for event in pygame.event.get():
             if event.type == pygame.QUIT: sys.exit()
-    
+
