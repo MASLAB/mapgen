@@ -49,7 +49,10 @@ if __name__ == '__main__':
     imgScale = (float(0.5*res), float(0.5*res)) #set this to be height/width in terms of scale of board tile (ie. 0.3 of board tile)
     img = pygame.transform.scale(img, imgScale)
     screen.blit(img, (20,20))
-            
+
+    x_pos = 20
+    y_pos = 20
+    
     for element in elements:
         print(element)
         n = element[0]
@@ -82,9 +85,45 @@ if __name__ == '__main__':
         if n == "L":
             arrow(screen, (int(element[1])*blockSize + buffer, height-int(element[2])*blockSize + buffer), element[3])
         
-
+    simulate = True # TODO: CHANGE TO NOT SIMULATE
     pygame.display.update()
     while 1:
         for event in pygame.event.get():
             if event.type == pygame.QUIT: sys.exit()
-    
+            if simulate:
+                x_change = 0
+                y_change = 0
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_LEFT:
+                        x_change = -5
+                    elif event.key == pygame.K_RIGHT:
+                        x_change = 5
+                    if event.key == pygame.K_DOWN:
+                        y_change = 5
+                    elif event.key == pygame.K_UP:
+                        y_change = -5
+
+                if x_change != 0 or y_change != 0:
+                    x_pos += x_change
+                    y_pos += y_change
+                    screen.blit(img, (x_pos, y_pos))
+                    pygame.init()
+                    res = 120
+                    tileX = 3 #number of board tiles across
+                    tileY = 3 #num of board tiles
+                    size = width, height = (tileX+2)* res, (tileY+2) *res #of total board, by numer of tiles
+                    screen = pygame.display.set_mode(size)
+                    blockSize = int(res/2) # Set the size of the grid block for every half tile
+  
+                    #draw white dots on grid
+                    for x in range(0, width, blockSize):
+                        for y in range(0, height, blockSize):
+                            pygame.draw.circle(screen, (255,255,255), (x,y), 1)
+
+                    x_pos += x_change
+                    screen.blit(img, (x_pos, y_pos))
+                    pygame.display.update()
+
+
+
+
