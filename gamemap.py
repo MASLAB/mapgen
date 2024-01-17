@@ -4,52 +4,8 @@ Constructs a Map object from a map file
 """
 
 import sys
-from pygame import init, draw, Rect, display, event, QUIT, image, transform
-
-# Set commonly used colors
-BLACK = (0, 0, 0)
-RED = (237, 54, 26)
-GREEN = (19, 217, 9)
-BLUE = (61, 175, 219)
-GRAY = (227, 221, 107)
-LIGHT_RED = (255, 135, 135)
-LIGHT_GREEN = (199, 224, 164)
-WHITE = (255, 255, 255)
-
-# Set pixels per foot
-PPF = 60
-
-# Set tile width (in feet)
-TILE_WIDTH = 2
-
-# Set cube width (in pixels)
-WIDTH = 20
-
-# Set robot width (in pixels)
-ROBOT_WIDTH = 60
-
-# Set bounding box width (in inches)
-BOX_WIDTH_IN = 20
-
-# Set bounding box width (in pixels)
-BOX_WIDTH = BOX_WIDTH_IN / 12 * PPF
-
-# Set Z spacing of cubes (in pixels)
-ZSPACING = 8
-
-# Set dimensions of board
-XTILES = 5
-YTILES = 4
-
-# Set size of 2-foot game tile
-RESOLUTION = TILE_WIDTH * PPF
-
-# Set X and Y offsets (in pixels)
-XOFF = RESOLUTION / 2
-YOFF = RESOLUTION / 2
-
-# Set board dimensions
-SIZE = XTILES * RESOLUTION + 2 * XOFF, YTILES * RESOLUTION + 2 * YOFF
+from constants import *
+from kinematics import convert_velocities
 
 class Map:
     def __init__(self, filename):
@@ -59,6 +15,17 @@ class Map:
         # Read input file
         with open(filename, "r") as f:
             data = f.read()
+
+        # Initialize robot angle (zero up, positive clockwise)
+        self.angle = None
+
+        # Initialize robot image
+        img = image.load("botpic_cropped.png")
+        imgScale = (float(ROBOT_WIDTH), float(ROBOT_WIDTH))
+        self.img = transform.scale(img, imgScale)
+
+        # Save initial robot position
+        self.initial = ((0, 0), 0)
 
         # Parse map file
         w, x, p, b, a, r = self.parse(data)
@@ -70,6 +37,9 @@ class Map:
         self.cubes = b
         self.apriltags = a
         self.robot = r
+        
+        # Initialize game clock
+        self.clock = Clock()
 
     def draw(self):
         # Initialize pygame
@@ -79,48 +49,80 @@ class Map:
         width, height = SIZE
         self.screen = display.set_mode(SIZE)
 
-        self.screen.fill(BLACK)
-        display.flip()
-
-        # Draw grid coordinates
-        x = XOFF
-        while x <= width:
-            y = YOFF
-            while y <= height:
-                draw.circle(self.screen, WHITE, (x, y), 1)
-                y += RESOLUTION
-            x += RESOLUTION
-
-        # Draw walls
-        for wall in self.walls:
-            draw.line(self.screen, *wall)
-
-        # Draw bounding box
-        for box in self.box:
-            draw.line(self.screen, *box)
-
-        # Draw cubes
-        for cube in self.cubes:
-            draw.rect(self.screen, *cube)
-
-        # Draw platforms
-        for platform in self.platforms:
-            draw.line(self.screen, *platform)
-
-        # Draw AprilTags
-        for tag in self.apriltags:
-            draw.rect(self.screen, *tag)
-
-        # Draw robot
-        if not (self.robot is None):
-            self.screen.blit(*self.robot)
-
-        # Update display
-        display.update()
-
-        # Wait for QUIT
+        # Loop
         while True:
+            self.screen.fill(BLACK)
+
+            # Draw grid coordinates
+            x = XOFF
+            while x <= width:
+                y = YOFF
+                while y <= height:
+                    draw.circle(self.screen, WHITE, (x, y), 1)
+                    y += RESOLUTION
+                x += RESOLUTION
+
+            # Draw walls
+            for wall in self.walls:
+                draw.line(self.screen, *wall)
+
+            # Draw bounding box
+            for box in self.box:
+                draw.line(self.screen, *box)
+
+            # Draw cubes
+            for cube in self.cubes:
+                draw.rect(self.screen, *cube)
+
+            # Draw platforms
+            for platform in self.platforms:
+                draw.line(self.screen, *platform)
+
+            # Draw AprilTags
+            for tag in self.apriltags:
+                draw.rect(self.screen, *tag)
+
+            # Get drive velocity
+            drive_speed = self.get_drive_speed()
+            linear, angular = convert_velocities(drive_speed)
+            
+            # Apply velocity to robot & draw robot
+            if not (self.robot is None):
+                # Get time since last call (in seconds)
+                dt = self.clock.tick(50) / 1000
+
+                # Compute robot motion (flip rotation direction)
+                delta_angle = -1 * angular * dt
+                drive_angle = radians(self.angle) + delta_angle/2
+                dx = linear * dt * sin(drive_angle)
+                dy = linear * dt * cos(drive_angle)
+                self.angle += degrees(delta_angle)
+
+                # Compute new robot position
+                x, y = self.robot
+                newimg = transform.rotate(self.img, self.angle)
+                x += dx
+                y += dy
+
+                # Update robot
+                self.robot = x, y
+
+                # Shift robot to account for image padding
+                padding_angle = radians(self.angle % 90)
+                new_size = ROBOT_WIDTH * (cos(padding_angle) + sin(padding_angle))
+                adjustment = (new_size - ROBOT_WIDTH) / 2
+                x -= adjustment
+                y -= adjustment
+
+                # Draw robot
+                self.screen.blit(newimg, (x, y))
+                display.update()
+
             for e in event.get():
+                if e.type == KEYDOWN:
+                    if e.key == K_r:
+                        self.robot, self.angle = self.initial
+
                 if e.type == QUIT:
                     sys.exit()
             
@@ -163,14 +165,9 @@ class Map:
                 # Robot
                 case "R":
                     x1, y1 = [float(v) for v in values[0:2]]
-                    angle = 180 - float(values[2]) # negative for clockwise rotation
-
-                    img = image.load("botpic_cropped.png")
-                    imgScale = (float(ROBOT_WIDTH), float(ROBOT_WIDTH))
-                    img = transform.scale(img, imgScale)
-                    img = transform.rotate(img, angle)
-
-                    robot = (img, (x1 * RESOLUTION - ROBOT_WIDTH / 2 + XOFF, y1 * RESOLUTION - ROBOT_WIDTH / 2 + YOFF))
+                    self.angle = 180 - float(values[2]) # negative for clockwise rotation
+                    robot = (x1 * RESOLUTION - ROBOT_WIDTH / 2 + XOFF, y1 * RESOLUTION - ROBOT_WIDTH / 2 + YOFF)
+                    self.initial = (robot, self.angle)
 
                 # Cube
                 case "C":
@@ -193,3 +190,26 @@ class Map:
                     raise Exception(f"Did not recognize game object: {other}")
         
         return walls, box, platforms, cubes, apriltags, robot
+
+    def get_drive_speed(self):
+        """
+        Compute drive speed from keyboard input
+        """
+        # Initialize left & right drive speeds
+        drive_speed = 0, 0
+
+        # Process event handlers
+        event.pump()
+
+        # Get keys pressed
+        pressed = key.get_pressed()
+
+        for keycode in [K_w, K_a, K_s, K_d]:
+            # Check if this key was pressed
+            if pressed[keycode]:
+                drive_speed = (
+                    drive_speed[0] + KEY_SPEEDS[keycode][0],
+                    drive_speed[1] + KEY_SPEEDS[keycode][1],
+                )
+        
+        return drive_speed
