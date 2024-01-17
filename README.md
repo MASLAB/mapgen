@@ -2,6 +2,16 @@
 
 This repository will enable you to visualize MASLAB 2024 map files!
 
+## Instructions
+
+`$ python3 main.py [mapfile]`
+
+The 2024 test map can be found at `maps/2024_test_map.txt`.
+
+Use `WASD` to control the robot's position.
+
+Use `R` to reset the robot's position.
+
 ## Dependencies
 
 - `pygame 2.1.2`
