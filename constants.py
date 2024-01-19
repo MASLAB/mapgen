@@ -58,8 +58,8 @@ BOX_WIDTH = BOX_WIDTH_IN / 12 * PPF
 ZSPACING = 8
 
 # Set dimensions of board
-XTILES = 5
-YTILES = 4
+XTILES = 6
+YTILES = 5
 
 # Set size of 2-foot game tile
 RESOLUTION = TILE_WIDTH * PPF
